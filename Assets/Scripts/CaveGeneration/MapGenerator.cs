@@ -11,6 +11,8 @@ namespace CaveGeneration
 		[SerializeField] private bool UseRandomSeed;
 		[SerializeField] private int SmoothingSteps;
 		[Range(0, 100)] [SerializeField] private int RandomFillPercent; // Percentage chance to fill a cell 
+		
+		[SerializeField] MeshFilter MeshFilter;
 
 		public MarchingSquaresMeshGenerator marchingSquaresMeshGenerator { get; private set; }
 		public CellularAutomataMapGenerator cellularAutomataMapGenerator { get; private set; }
@@ -40,7 +42,9 @@ namespace CaveGeneration
 		private void GenerateMap()
 		{
 			cellularAutomataMapGenerator.GenerateMap();
-			marchingSquaresMeshGenerator.GenerateMesh(cellularAutomataMapGenerator.map, 1);
+			Mesh mesh = marchingSquaresMeshGenerator.GenerateMesh(cellularAutomataMapGenerator.map, 1);
+
+			MeshFilter.mesh = mesh;
 		}
 	}
 }

@@ -11,8 +11,10 @@
 		public Node centerRightNode { get; private set;}
 		public Node centerBottomNode { get; private set;}
 		public Node centerLeftNode { get; private set;}
+		
+		public int configurationIndex {get; private set;} //configuration index in marching squares algorithm
 
-		public Square(ControlNode topLeftNode, ControlNode topRightNode, ControlNode bottomLeftNode, ControlNode bottomRightNode)
+		public Square(ControlNode topLeftNode, ControlNode topRightNode, ControlNode bottomRightNode, ControlNode bottomLeftNode)
 		{
 			this.topLeftNode = topLeftNode;
 			this.topRightNode = topRightNode;
@@ -23,6 +25,25 @@
 			centerRightNode = bottomRightNode.AboveNode;
 			centerBottomNode = bottomLeftNode.RightNode;
 			centerLeftNode = bottomLeftNode.AboveNode;
+
+			DetermineConfigurationIndex();
+		}
+
+		private void DetermineConfigurationIndex()
+		{
+			//determine marching squares configuration index relative to neighboring nodes.
+			//reference: https://jamie-wong.com/images/14-08-11/marching-squares-mapping.png
+			
+			configurationIndex = 0;
+			
+			if (topLeftNode.isActive)
+				configurationIndex += 8;
+			if (topRightNode.isActive)
+				configurationIndex += 4;
+			if (bottomRightNode.isActive)
+				configurationIndex += 2;
+			if (bottomLeftNode.isActive)
+				configurationIndex += 1;
 		}
 	}
 }

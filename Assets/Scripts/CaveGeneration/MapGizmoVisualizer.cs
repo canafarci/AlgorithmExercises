@@ -30,16 +30,16 @@ namespace CaveGeneration
 			{
 				for (int y = 0; y < squareGrid.squares.GetLength(1); y++)
 				{
-					Gizmos.color = (squareGrid.squares[x,y].topLeftNode.isWall)?Color.black:Color.cyan;
+					Gizmos.color = (squareGrid.squares[x,y].topLeftNode.isActive)?Color.black:Color.cyan;
 					Gizmos.DrawCube(squareGrid.squares[x,y].topLeftNode.position, Vector3.one * .4f);
 
-					Gizmos.color = (squareGrid.squares[x,y].topRightNode.isWall)?Color.black:Color.cyan;
+					Gizmos.color = (squareGrid.squares[x,y].topRightNode.isActive)?Color.black:Color.cyan;
 					Gizmos.DrawCube(squareGrid.squares[x,y].topRightNode.position, Vector3.one * .4f);
 
-					Gizmos.color = (squareGrid.squares[x,y].bottomRightNode.isWall)?Color.black:Color.cyan;
+					Gizmos.color = (squareGrid.squares[x,y].bottomRightNode.isActive)?Color.black:Color.cyan;
 					Gizmos.DrawCube(squareGrid.squares[x,y].bottomRightNode.position, Vector3.one * .4f);
 
-					Gizmos.color = (squareGrid.squares[x,y].bottomLeftNode.isWall)?Color.black:Color.cyan;
+					Gizmos.color = (squareGrid.squares[x,y].bottomLeftNode.isActive)?Color.black:Color.cyan;
 					Gizmos.DrawCube(squareGrid.squares[x,y].bottomLeftNode.position, Vector3.one * .4f);
 					
 					Gizmos.color = Color.grey;

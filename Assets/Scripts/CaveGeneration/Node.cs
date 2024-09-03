@@ -19,11 +19,11 @@ namespace CaveGeneration
 		public Node AboveNode;
 		public Node RightNode;
 		
-		public bool isWall { get; private set; }
+		public bool isActive { get; private set; }
 		
-		public ControlNode(Vector3 position, bool isWall, float squareSize) : base(position)
+		public ControlNode(Vector3 position, bool isActive, float squareSize) : base(position)
 		{
-			this.isWall = isWall;
+			this.isActive = isActive;
 			AboveNode = new Node(position + Vector3.forward * squareSize / 2f);
 			RightNode = new Node(position + Vector3.right * squareSize / 2f);
 		}
