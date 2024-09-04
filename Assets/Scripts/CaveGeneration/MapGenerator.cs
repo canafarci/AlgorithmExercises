@@ -10,9 +10,11 @@ namespace CaveGeneration
 		[SerializeField] private string Seed; // Seed for random generation
 		[SerializeField] private bool UseRandomSeed;
 		[SerializeField] private int SmoothingSteps;
+		[SerializeField] private float WallHeight;
 		[Range(0, 100)] [SerializeField] private int RandomFillPercent; // Percentage chance to fill a cell 
 		
-		[SerializeField] MeshFilter MeshFilter;
+		[SerializeField] MeshFilter MeshFilter2D;
+		[SerializeField] MeshFilter MeshFilterWall;
 
 		public MarchingSquaresMeshGenerator marchingSquaresMeshGenerator { get; private set; }
 		public CellularAutomataMapGenerator cellularAutomataMapGenerator { get; private set; }
@@ -22,7 +24,7 @@ namespace CaveGeneration
 		private void Awake()
 		{
 			cellularAutomataMapGenerator = new CellularAutomataMapGenerator(Width, Height, UseRandomSeed, SmoothingSteps, RandomFillPercent, Seed);
-			marchingSquaresMeshGenerator = new MarchingSquaresMeshGenerator();
+			marchingSquaresMeshGenerator = new MarchingSquaresMeshGenerator(WallHeight);
 		}
 
 		private void Start()
@@ -42,9 +44,10 @@ namespace CaveGeneration
 		private void GenerateMap()
 		{
 			cellularAutomataMapGenerator.GenerateMap();
-			Mesh mesh = marchingSquaresMeshGenerator.GenerateMesh(cellularAutomataMapGenerator.map, 1);
+			(Mesh mesh2d, Mesh wallMesh) mesh = marchingSquaresMeshGenerator.GenerateMesh(cellularAutomataMapGenerator.map, 1);
 
-			MeshFilter.mesh = mesh;
+			MeshFilter2D.mesh = mesh.mesh2d;
+			MeshFilterWall.mesh = mesh.wallMesh;
 		}
 	}
 }

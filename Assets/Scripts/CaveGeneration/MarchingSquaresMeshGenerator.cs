@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 // The Marching Squares algorithm is a computer graphics algorithm used to generate contour lines or isosurfaces from a scalar field,
@@ -20,17 +21,35 @@ namespace CaveGeneration
 {
 	public class MarchingSquaresMeshGenerator
 	{
+		private readonly float _wallHeight;
+		
 		private List<Vector3> _vertices; 
 		private List<int> _triangles;
+		private Dictionary<int, List<Triangle>> _triangleLookup;
+		private List<List<int>> _outlines;
+		private HashSet<int> _checkedVertices;
 		public SquareGrid squareGrid { get; private set; }
 
-		public Mesh GenerateMesh(int[,] map, float squareSize)
+		public MarchingSquaresMeshGenerator(float wallHeight)
+		{
+			_wallHeight = wallHeight;
+		}
+		
+		public (Mesh, Mesh) GenerateMesh(int[,] map, float squareSize)
 		{
 			_vertices = new List<Vector3>();
 			_triangles = new List<int>();
+			_triangleLookup = new Dictionary<int, List<Triangle>>();
+			_outlines = new List<List<int>>();
+			_checkedVertices = new HashSet<int>();
 			
 			squareGrid = new SquareGrid(map, squareSize);
 			
+			return (Create2DMesh(), CreateWallMesh());
+		}
+
+		private Mesh Create2DMesh()
+		{
 			// Iterate through each square
 			for (int x = 0; x < squareGrid.squares.GetLength(0); x++)
 			{
@@ -39,14 +58,50 @@ namespace CaveGeneration
 					TriangulateSquare(squareGrid.squares[x,y]);
 				}
 			}
-			
+
 			Mesh mesh = new Mesh();
 			mesh.vertices = _vertices.ToArray();
 			mesh.triangles = _triangles.ToArray();
 			mesh.RecalculateNormals();
-			
 			return mesh;
 		}
+
+		private Mesh CreateWallMesh()
+		{
+			CalculateMeshOutlines();
+			
+			List<Vector3> wallVertices = new List<Vector3>();
+			List<int> wallTriangles = new List<int>();
+			Mesh wallMesh = new Mesh();
+
+			foreach (List<int> outline in _outlines)
+			{
+				for (int i = 0; i < outline.Count - 1; i++)
+				{
+					int startIndex = wallVertices.Count;
+					wallVertices.Add(_vertices[outline[i]]); //left vertex
+					wallVertices.Add(_vertices[outline[i + 1]]); //right vertex
+					wallVertices.Add(_vertices[outline[i]] - Vector3.up * _wallHeight); //bottom left vertex
+					wallVertices.Add(_vertices[outline[i + 1]] - Vector3.up * _wallHeight); //bottom right vertex
+					
+					//tri 1
+					wallTriangles.Add(startIndex + 0);  //top left
+					wallTriangles.Add(startIndex + 2);  //bottom left
+					wallTriangles.Add(startIndex + 3);  //bottom right
+					//tri 2
+					wallTriangles.Add(startIndex + 3); //bottom right
+					wallTriangles.Add(startIndex + 1); //top right
+					wallTriangles.Add(startIndex + 0); //top left
+				}
+			}
+			
+			wallMesh.vertices = wallVertices.ToArray();
+			wallMesh.triangles = wallTriangles.ToArray();
+			wallMesh.RecalculateNormals();
+
+			return wallMesh;
+		}
+		
 
 		private void TriangulateSquare(Square square)
 		{
@@ -60,13 +115,13 @@ namespace CaveGeneration
 
 				// 1 points:
 				case 1:
-					MeshFromPoints(square.centerBottomNode, square.bottomLeftNode, square.centerLeftNode);
+					MeshFromPoints(square.centerLeftNode, square.centerBottomNode, square.bottomLeftNode);
 					break;
 				case 2:
-					MeshFromPoints(square.centerRightNode, square.bottomRightNode, square.centerBottomNode);
+					MeshFromPoints(square.bottomRightNode, square.centerBottomNode, square.centerRightNode);
 					break;
 				case 4:
-					MeshFromPoints(square.centerTopNode, square.topRightNode, square.centerRightNode);
+					MeshFromPoints(square.topRightNode, square.centerRightNode, square.centerTopNode);
 					break;
 				case 8:
 					MeshFromPoints(square.topLeftNode, square.centerTopNode, square.centerLeftNode);
@@ -109,6 +164,11 @@ namespace CaveGeneration
 				// 4 point:
 				case 15:
 					MeshFromPoints(square.topLeftNode, square.topRightNode, square.bottomRightNode, square.bottomLeftNode);
+					//none of these vertices can be an outline
+					_checkedVertices.Add(square.topLeftNode.VertexIndex);
+					_checkedVertices.Add(square.topRightNode.VertexIndex);
+					_checkedVertices.Add(square.bottomRightNode.VertexIndex);
+					_checkedVertices.Add(square.bottomLeftNode.VertexIndex);
 					break;
 			}
 		}
@@ -144,6 +204,87 @@ namespace CaveGeneration
 			_triangles.Add(a.VertexIndex);
 			_triangles.Add(b.VertexIndex);
 			_triangles.Add(c.VertexIndex);
+			
+			Triangle triangle = new Triangle(a.VertexIndex, b.VertexIndex, c.VertexIndex);
+			
+			AddTriangleToDictionary(triangle); ;
+		}
+
+		private void AddTriangleToDictionary(Triangle triangle)
+		{
+			foreach (int vertexIndexKey in triangle.vertices)
+			{
+				if (_triangleLookup.ContainsKey(vertexIndexKey))
+				{
+					_triangleLookup[vertexIndexKey].Add(triangle);
+				}
+				else
+				{
+					_triangleLookup.Add(vertexIndexKey, new List<Triangle> { triangle });
+				}
+			}
+		}
+
+		private int GetConnectedOutlineVertex(int vertexIndex)
+		{
+			List<Triangle> trianglesContainingVertex = _triangleLookup[vertexIndex];
+
+			foreach (Triangle triangle in trianglesContainingVertex)
+			{
+				foreach (int vertexIndexB in triangle.vertices)
+				{
+					if (vertexIndexB != vertexIndex &&  !_checkedVertices.Contains(vertexIndexB) && IsOutlineEdge(vertexIndex, vertexIndexB))
+					{
+						return vertexIndexB;
+					}
+				}
+			}
+
+			return -1;
+		}
+
+		private bool IsOutlineEdge(int vertexA, int vertexB)
+		{
+			//if vertex A and vertex B only share one common triangle, it means it is an outline edge
+
+			List<Triangle> trianglesContainingVertexA = _triangleLookup[vertexA];
+			List<Triangle> trianglesContainingVertexB = _triangleLookup[vertexB];
+
+			return trianglesContainingVertexA.Count(x => x.ContainsVertexIndex(vertexB)) == 1;
+		}
+
+		private void CalculateMeshOutlines()
+		{
+			for (var vertexIndex = 0; vertexIndex < _vertices.Count; vertexIndex++)
+			{
+				if (!_checkedVertices.Contains(vertexIndex))
+				{
+					int newOutlineVertex = GetConnectedOutlineVertex(vertexIndex);
+					if (newOutlineVertex != -1)
+					{
+						_checkedVertices.Add(vertexIndex);
+						
+						List<int> newOutline = new List<int>();
+						newOutline.Add(vertexIndex);
+						_outlines.Add(newOutline);
+						FollowOutline(newOutlineVertex, _outlines.Count - 1);
+						_outlines[_outlines.Count - 1].Add(vertexIndex);
+					}
+				}
+			}
+		}
+
+		private void FollowOutline(int vertexIndex, int outlineIndex)
+		{
+			_outlines[outlineIndex].Add(vertexIndex);
+			_checkedVertices.Add(vertexIndex);
+
+			int nextVertexIndex = GetConnectedOutlineVertex(vertexIndex);
+			
+			if (nextVertexIndex != -1)
+			{
+				FollowOutline(nextVertexIndex, outlineIndex);
+			}
 		}
 	}
 }

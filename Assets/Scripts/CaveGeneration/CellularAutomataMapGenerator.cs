@@ -9,6 +9,8 @@ public class CellularAutomataMapGenerator
     private readonly bool _useRandomSeed;
     private readonly int _smoothingSteps;
     private readonly int _randomFillPercent;
+    
+    private const int BORDER_SIZE = 5;
 
     public CellularAutomataMapGenerator(int width, int height, bool useRandomSeed, int smoothingSteps, int randomFillPercent, string seed = null)
     {
@@ -32,6 +34,33 @@ public class CellularAutomataMapGenerator
         {
             SmoothMap();
         }
+
+        var borderedMap = AddBorderToMap();
+
+        map = borderedMap;
+    }
+
+    private int[,] AddBorderToMap()
+    {
+        int[,] borderedMap = new int[_width + BORDER_SIZE * 2, _height + BORDER_SIZE * 2];
+        
+        // Iterate through each cell in the map
+        for (int x = 0; x < borderedMap.GetLength(0); x++)
+        {
+            for (int y = 0; y < borderedMap.GetLength(1); y++)
+            {
+                if (x >= BORDER_SIZE && x < _width + BORDER_SIZE && y >= BORDER_SIZE && y < _height + BORDER_SIZE)
+                {
+                    borderedMap[x, y] = map[x - BORDER_SIZE, y - BORDER_SIZE];
+                }
+                else
+                {
+                    borderedMap[x, y] = 1;
+                }
+            }
+        }
+
+        return borderedMap;
     }
 
     // Smooths the map by applying cellular automata rules
